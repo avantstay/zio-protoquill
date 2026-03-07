@@ -15,6 +15,7 @@ inThisBuild(
       ScmInfo(url("https://github.com/li-nkSN/zio-protoquill"), "git:git@github.com:li-nkSN/zio-protoquill.git")
     ),
     versionScheme := Some("always"),
+    sonatypeCredentialHost := "central.sonatype.com",
   )
 )
 
