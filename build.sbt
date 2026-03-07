@@ -8,6 +8,7 @@ inThisBuild(
     homepage := Some(url("https://github.com/li-nkSN/zio-protoquill")),
     licenses := List(("Apache License 2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))),
     developers := List(
+      Developer("deusaquilus", "Alexander Ioffe", "", url("https://github.com/deusaquilus")),
       Developer("li-nkSN", "Colin K. Williams", "colin@li-nk.org", url("https://github.com/li-nkSN"))
     ),
     scmInfo := Some(
