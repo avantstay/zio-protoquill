@@ -86,7 +86,7 @@ val filteredModules = {
   selectedModules
 }
 
-val zioQuillVersion = "4.8.5"
+val zioQuillVersion = "4.8.7-RC1"
 val zioVersion = "2.1.24"
 
 lazy val `quill` =
@@ -119,9 +119,9 @@ lazy val `quill-sql` =
         "io.suzaku" %% "boopickle" % "1.5.0",
         "com.lihaoyi" %% "pprint" % "0.9.6",
         "ch.qos.logback" % "logback-classic" % "1.5.32" % Test,
-        "io.getquill" %% "quill-engine" % zioQuillVersion,
+        "org.li-nk.quill" %% "quill-engine" % zioQuillVersion,
         "dev.zio" %% "zio" % zioVersion,
-        ("io.getquill" %% "quill-util" % zioQuillVersion)
+        ("org.li-nk.quill" %% "quill-util" % zioQuillVersion)
           .excludeAll({
             if (isCommunityBuild)
               Seq(ExclusionRule(organization = "org.scalameta", name = "scalafmt-core_2.13"))
