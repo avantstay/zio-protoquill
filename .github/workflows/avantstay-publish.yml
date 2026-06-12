@@ -1,0 +1,88 @@
+# avantstay fork CI: build/test on Blacksmith runners and publish quill-sql /
+# quill-jdbc to GitHub Packages under a fork-qualified version, consumed by
+# arriere via dependencyOverrides.
+#
+# Requirements:
+#   - Install the Blacksmith GitHub App on the avantstay org and enable this
+#     repo (https://github.com/apps/blacksmith-sh). Until then, jobs targeting
+#     blacksmith-* labels stay queued — switch runs-on to ubuntu-latest as a
+#     fallback if needed.
+#   - GITHUB_TOKEN (provided automatically) is enough to publish packages.
+name: avantstay publish
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish, e.g. 4.8.6-pr720.1"
+        required: true
+      skip-tests:
+        description: "Skip the sqltest gate before publishing"
+        type: boolean
+        default: false
+
+jobs:
+  test:
+    if: github.event_name == 'pull_request' || !inputs.skip-tests
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          check-latest: true
+      - uses: sbt/setup-sbt@v1
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/.ivy2/cache
+            ~/.sbt
+          key: coursier-${{ runner.os }}-${{ hashFiles('build.sbt', 'project/**') }}
+          restore-keys: coursier-${{ runner.os }}-
+      - name: Build and test (sqltest, no databases)
+        run: ./build/build.sh sqltest
+
+  publish:
+    # run on dispatch when the test gate passed or was deliberately skipped
+    if: >-
+      github.event_name == 'workflow_dispatch' && !cancelled() &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
+    needs: [test]
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PUBLISH_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          check-latest: true
+      - uses: sbt/setup-sbt@v1
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/.ivy2/cache
+            ~/.sbt
+          key: coursier-${{ runner.os }}-${{ hashFiles('build.sbt', 'project/**') }}
+          restore-keys: coursier-${{ runner.os }}-
+      - name: Publish quill-sql and quill-jdbc to GitHub Packages
+        run: |
+          sbt --batch \
+            "set ThisBuild / version := \"$PUBLISH_VERSION\"" \
+            'set ThisBuild / credentials += Credentials("GitHub Package Registry", "maven.pkg.github.com", sys.env("GITHUB_ACTOR"), sys.env("GITHUB_TOKEN"))' \
+            'set LocalProject("quill-sql") / publishTo := Some("GitHub Packages" at "https://maven.pkg.github.com/avantstay/zio-protoquill")' \
+            'set LocalProject("quill-jdbc") / publishTo := Some("GitHub Packages" at "https://maven.pkg.github.com/avantstay/zio-protoquill")' \
+            'set LocalProject("quill-sql") / Compile / packageDoc / publishArtifact := false' \
+            'set LocalProject("quill-jdbc") / Compile / packageDoc / publishArtifact := false' \
+            quill-sql/publish quill-jdbc/publish
