@@ -41,6 +41,28 @@ while ! nc -z 127.0.0.1 11521; do
     sleep 2;
 done;
 
+# The listener accepts TCP connections long before the XE database has
+# registered its SID, so the port check alone races into ORA-12505 on fast
+# runners. Poll an actual login until the database is reachable end-to-end.
+echo "Waiting for Oracle database registration"
+oracle_ready=""
+for attempt in $(seq 1 60); do
+    if java -cp 'sqlline/sqlline.jar:sqlline/ojdbc.jar' 'sqlline.SqlLine' \
+        -u 'jdbc:oracle:thin:@localhost:11521:xe' \
+        -n quill_test -p 'QuillRocks!' \
+        -e 'SELECT 1 FROM DUAL;' \
+        --showWarnings=false > /dev/null 2>&1; then
+        oracle_ready="yes"
+        break
+    fi
+    echo "Oracle not ready yet (attempt ${attempt})"
+    sleep 5
+done
+if [[ -z "$oracle_ready" ]]; then
+    echo "Oracle did not become ready in time"
+    exit 1
+fi
+
 echo "Running Oracle Setup Script"
 java -cp 'sqlline/sqlline.jar:sqlline/ojdbc.jar' 'sqlline.SqlLine' \
   -u 'jdbc:oracle:thin:@localhost:11521:xe' \
